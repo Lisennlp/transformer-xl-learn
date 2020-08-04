@@ -24,13 +24,13 @@ class PositionalEmbedding(nn.Module):
         self.register_buffer('inv_freq', inv_freq)
 
     def forward(self, pos_seq, bsz=None):
-        print(f'demb = {self.demb}')
-        print(f'pos_seq shape = {pos_seq.shape}')
+        # print(f'demb = {self.demb}')
+        # print(f'pos_seq shape = {pos_seq.shape}')
         sinusoid_inp = torch.ger(pos_seq, self.inv_freq)    # 将pos_seq的每个值应用于self.inv_freq函数
-        print(f'sinusoid_inp shape = {sinusoid_inp.shape}')
+        # print(f'sinusoid_inp shape = {sinusoid_inp.shape}')
 
         pos_emb = torch.cat([sinusoid_inp.sin(), sinusoid_inp.cos()], dim=-1)
-        print(f'pos_emb shape = {pos_emb.shape}')
+        # print(f'pos_emb shape = {pos_emb.shape}')
 
         if bsz is not None:
             return pos_emb[:, None, :].expand(-1, bsz, -1)    # 把位置向量拓展为bsz个这样的位置向量表示
@@ -122,7 +122,7 @@ class MultiHeadAttn(nn.Module):
         # [qlen x klen x bsz x n_head]
         attn_score = torch.einsum('ibnd,jbnd->ijbn', (head_q, head_k))
         attn_score.mul_(self.scale)
-        print(f'attn_mask = {attn_mask}')
+        # print(f'attn_mask = {attn_mask}')
         if attn_mask is not None and attn_mask.any().item():    # attn_mask有一个为true则为正
             if attn_mask.dim() == 2:
                 attn_score.masked_fill_(attn_mask[None, :, :, None], -float('inf'))
@@ -268,7 +268,7 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         if mems is not None:
             # 因为在外部已经初始化mems了，即使为第一个batch的时候，mems=tensor([])也会进入这个条件
             cat = torch.cat([mems, w], 0)    # 将mems 和 输入w拼接起来
-            print(f'cat = {cat.shape}')    # 72 x 4 x 200 或 36 x 4 x 200
+            # print(f'cat = {cat.shape}')    # 72 x 4 x 200 或 36 x 4 x 200
 
             if self.pre_lnorm:
                 w_heads = self.qkv_net(self.layer_norm(cat))    # 200 x 12
@@ -276,15 +276,15 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
                 w_heads = self.qkv_net(
                     cat
                 )    # 200 -> 100 相当于qkv的线性转换，并且每个头使用的线性转换参数不同享，相当于包括2个头，3个q|，k|v即6个线性转换参数，因此维度为600
-            print(f'w_heads = {w_heads.shape}')    # 72 x 4 x 600 或 36 x 4 x 600
+            # print(f'w_heads = {w_heads.shape}')    # 72 x 4 x 600 或 36 x 4 x 600
             # 相对位置向量参数  36 x 4 x 200  ： 由sin cos绝对位置向量经过线性变换而成 即 72 x 200 经过 200 x (2 * 100) 的线性层 -> 72 x （2 * 100） 正好对应72个位置的相对位置向量
             r_head_k = self.r_net(r)
-            print(f'r_head_k-1 = {r_head_k.shape}')
+            # print(f'r_head_k-1 = {r_head_k.shape}')
 
             w_head_q, w_head_k, w_head_v = torch.chunk(w_heads, 3,
                                                        dim=-1)    # 切分为200 （2个头） 72 x 4 x 200
             w_head_q = w_head_q[-qlen:]    # 取后面的w，不要mems的，36 x 4 x 200
-            print(f'w_head_q = {w_head_q.shape}')    # 32 x 4 x 200
+            # print(f'w_head_q = {w_head_q.shape}')    # 32 x 4 x 200
 
         else:
             if self.pre_lnorm:
@@ -307,23 +307,23 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         r_head_k = r_head_k.view(rlen, self.n_head,
                                  self.d_head)    # 拆开头部分 qlen x n_head x d_head # 36|72 x 2 x 100
 
-        print(f'r_head_k0 = {r_head_k.shape}')
+        # print(f'r_head_k0 = {r_head_k.shape}')
 
         #### compute attention score
         rw_head_q = w_head_q + r_w_bias    # A,C 把  w_head_k提取出来了 ，所以是  w_head_q + u      # qlen x bsz x n_head x d_head
-        print(f'rw_head_q = {rw_head_q.shape}')
-        print(f'w_head_k = {w_head_k.shape}')
+        # print(f'rw_head_q = {rw_head_q.shape}')
+        # print(f'w_head_k = {w_head_k.shape}')
 
         AC = torch.einsum('ibnd,jbnd->ijbn', (rw_head_q, w_head_k))    # qlen x klen x bsz x n_head
-        print(f'AC = {AC.shape}')
+        # print(f'AC = {AC.shape}')
 
         rr_head_q = w_head_q + r_r_bias
-        print(f'rr_head_q = {rr_head_q.shape}')
-        print(f'r_head_k = {r_head_k.shape}')
+        # print(f'rr_head_q = {rr_head_q.shape}')
+        # print(f'r_head_k = {r_head_k.shape}')
         BD = torch.einsum('ibnd,jnd->ijbn', (rr_head_q, r_head_k))    # qlen x klen x bsz x n_head
         BD = self._rel_shift(BD)
 
-        print(f'BD = {BD.shape}')
+        # print(f'BD = {BD.shape}')
 
         # [qlen x klen x bsz x n_head]   # 几个头一起做
         attn_score = AC + BD
@@ -339,8 +339,8 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
                                                             -float('inf')).type_as(attn_score)
             elif attn_mask.dim() == 3:
                 # attn_mask shape 36 x 72 x 1 在最后加维度1，-> 36 x 72 x 1 x 1 正好mask qlen x klen x bsz x n_head维度，两个维度为1的会自动广播
-                print(f'attn_score = {attn_score.shape}')
-                print(f'attn_mask = {attn_mask.shape}')
+                # print(f'attn_score = {attn_score.shape}')
+                # print(f'attn_mask = {attn_mask.shape}')
                 attn_score = attn_score.float().masked_fill(attn_mask[:, :, :, None],
                                                             -float('inf')).type_as(attn_score)
         """
@@ -374,8 +374,8 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         attn_prob = self.dropatt(attn_prob)
 
         #### compute attention vector
-        print(f'attn_prob = {attn_prob.shape}')
-        print(f'w_head_v = {w_head_v.shape}')
+        # print(f'attn_prob = {attn_prob.shape}')
+        # print(f'w_head_v = {w_head_v.shape}')
 
         attn_vec = torch.einsum('ijbn,jbnd->ibnd', (attn_prob, w_head_v))
 
@@ -446,9 +446,9 @@ class RelLearnableMultiHeadAttn(RelMultiHeadAttn):
         AC = torch.einsum('ibnd,jbnd->ijbn', (rw_head_q, w_head_k))    # qlen x klen x bsz x n_head
         B_ = torch.einsum('ibnd,jnd->ijbn', (w_head_q, r_emb))    # qlen x klen x bsz x n_head
         D_ = r_bias[None, :, None]    # 1    x klen x 1   x n_head
-        print(f'B_ + D_ = {B_ + D_}')
+        # print(f'B_ + D_ = {B_ + D_}')
         BD = self._rel_shift(B_ + D_)
-        print(f'BD = {BD}')
+        # print(f'BD = {BD}')
 
         # [qlen x klen x bsz x n_head]
         attn_score = AC + BD
@@ -552,7 +552,7 @@ class AdaptiveEmbedding(nn.Module):
         self.cutoff_ends = [0] + self.cutoffs    # [0, 5000, 10000]
 
         self.emb_layers = nn.ModuleList()
-        self.emb_projs = nn.ParameterList()
+        self.emb_projs = nn.ParameterList()  # 词向量线性变换，就是说，输入的词向量进行升维或者降维，输出的时候，可以选择共享或不共享参数，跟词向量参数一样
         if div_val == 1:
             self.emb_layers.append(nn.Embedding(n_token, d_embed, sparse=sample_softmax > 0))
             if d_proj != d_embed:
@@ -724,9 +724,9 @@ class MemTransformerLM(nn.Module):
             self.pos_emb = PositionalEmbedding(self.d_model)    # 绝对位置向量,sin, cos
             self.r_w_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))    # 相对位置向量u
             self.r_r_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))    # 相对位置向量v
-            print(f'self.d_model = {self.d_model}')
-            print(f'self.r_w_bias = {self.r_w_bias.shape}')
-            print(f'self.r_r_bias = {self.r_r_bias.shape}')
+            # print(f'self.d_model = {self.d_model}')
+            # print(f'self.r_w_bias = {self.r_w_bias.shape}')
+            # print(f'self.r_r_bias = {self.r_r_bias.shape}')
 
         elif self.attn_type == 1:    # learnable
             self.r_emb = nn.Parameter(
@@ -788,7 +788,7 @@ class MemTransformerLM(nn.Module):
 
         mlen = mems[0].size(0) if mems is not None else 0
         klen = mlen + qlen    # 36 或72
-        print(f'klen = {klen} self.same_length ={self.same_length}')
+        # print(f'klen = {klen} self.same_length ={self.same_length}')
         if self.same_length:    # False
             all_ones = word_emb.new_ones(qlen, klen)
             mask_len = klen - self.mem_len
@@ -796,12 +796,16 @@ class MemTransformerLM(nn.Module):
                 mask_shift_len = qlen - mask_len
             else:
                 mask_shift_len = qlen
+            # dec_attn_mask = (torch.triu(all_ones, 1 + mlen) +
+            #                  torch.tril(all_ones, -mask_shift_len)).byte()[:, :, None]    # -1
             dec_attn_mask = (torch.triu(all_ones, 1 + mlen) +
-                             torch.tril(all_ones, -mask_shift_len)).byte()[:, :, None]    # -1
+                             torch.tril(all_ones, -mask_shift_len)).bool()[:, :, None]    # -1
         else:
+            # dec_attn_mask = torch.triu(word_emb.new_ones(qlen, klen),
+            #                            diagonal=1 + mlen).byte()[:, :, None]
             dec_attn_mask = torch.triu(word_emb.new_ones(qlen, klen),
-                                       diagonal=1 + mlen).byte()[:, :, None]
-            print(f'dec_attn_mask shape = {dec_attn_mask.shape}')
+                                       diagonal=1 + mlen).bool()[:, :, None]
+            # print(f'dec_attn_mask shape = {dec_attn_mask.shape}')
             # print(word_emb.shape)  # torch.Size([36, 4, 200])
 
 #            torch.Size([36, 36, 1])
@@ -811,11 +815,11 @@ class MemTransformerLM(nn.Module):
         if self.attn_type == 0:    # default
             pos_seq = torch.arange(klen - 1, -1, -1.0, device=word_emb.device,
                                    dtype=word_emb.dtype)    # 位置从大到小？
-            print(f'pos_seq = {pos_seq}')
+            # print(f'pos_seq = {pos_seq}')
             if self.clamp_len > 0:    # -1
                 pos_seq.clamp_(max=self.clamp_len)    # 如果超过这个长度，使用相同的位置向量
             pos_emb = self.pos_emb(pos_seq)    # 绝对位置向量 , batch维度没有创建
-            print(f'pos_emb = {pos_emb.shape}')
+            # print(f'pos_emb = {pos_emb.shape}')
 
             core_out = self.drop(word_emb)
             pos_emb = self.drop(pos_emb)
@@ -823,7 +827,6 @@ class MemTransformerLM(nn.Module):
             hids.append(core_out)    # 记录每一层的隐层状态
 
             for i, layer in enumerate(self.layers):
-                print(f'iiiii = {i}')
                 mems_i = None if mems is None else mems[i]
                 core_out = layer(core_out,
                                  pos_emb,
@@ -900,21 +903,23 @@ class MemTransformerLM(nn.Module):
             mems = self.init_mems()
 
         tgt_len = target.size(0)
-        print(f'data = {data.shape}')
+        # print(f'data = {data.shape}')
         hidden, new_mems = self._forward(data, mems=mems)
-        print(f'hidden shape = {hidden.shape}')
         pred_hid = hidden[
             -tgt_len:]    # 预测的结果，利用了之前的信息，hidden维度： (mems + tgt_len)  * 4 * 200 即 36 x 4 x 200
+        
+        # sample_softmax 随机选择n个词就行softmax，否则所有词
         if self.sample_softmax > 0 and self.training:
+            # self.tie_weight 控制是否共享词向量参数  self.out_layer：就是转化为词表概率的线性层
             assert self.tie_weight
             logit = sample_logits(self.word_emb, self.out_layer.bias, target, pred_hid,
                                   self.sampler)
             loss = -F.log_softmax(logit, -1)[:, :, 0]
         else:
-            print(f'pred_hid shape = {pred_hid.shape}')
+            # print(f'pred_hid shape = {pred_hid.shape}')
             # pred_hid.view(-1, pred_hid.size(-1)): 144 x 200, target.view(-1): 144
             loss = self.crit(pred_hid.view(-1, pred_hid.size(-1)), target.view(-1))    #
-            print(f'loss = {loss.shape}')
+            # print(f'loss = {loss.shape}')
             loss = loss.view(tgt_len, -1)    # 36 x 4
 
         if new_mems is None:
@@ -933,7 +938,7 @@ if __name__ == '__main__':
     parser.add_argument('--d_head', type=int, default=100, help='')    # head 的维度
     parser.add_argument('--d_model', type=int, default=200, help='')
     parser.add_argument('--d_embed', type=int, default=200, help='')
-    parser.add_argument('--d_inner', type=int, default=200, help='')
+    parser.add_argument('--d_inner', type=int, default=200, help='类似于bert的"intermediate_size"')
     parser.add_argument('--dropout', type=float, default=0.0, help='')
     parser.add_argument('--cuda', action='store_true', help='')
     parser.add_argument('--seed', type=int, default=1111, help='')
@@ -953,9 +958,9 @@ if __name__ == '__main__':
     data = torch.LongTensor(data_len * B).random_(0, args.n_token).to(device)    #
     print(f'data = {data.size()}')
     diter = data_utils.LMOrderedIterator(data, B, tgt_len, device=device, ext_len=ext_len)
-
-    cutoffs = [args.n_token // 2]    # 词表数一半
-    tie_projs = [False] + [True] * len(cutoffs)
+    # cutoffs = [args.n_token // 2]    # 词表数一半
+    cutoffs = []    # 词表数一半
+    tie_projs = [False] + [True] * len(cutoffs)   # 这应该是一个切分词表参数的超参，和cutoffs一致，如果cutoffs>0，tie_projs[1:]应该为True
 
     for div_val in [1, 2]:    # 1 表示不采用相对位置编码  2 ：采用
         for d_embed in [200, 100]:    # 200

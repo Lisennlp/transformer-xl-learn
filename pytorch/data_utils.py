@@ -7,38 +7,42 @@ import torch
 
 from utils.vocabulary import Vocab
 
+
 class LMOrderedIterator(object):
+
     def __init__(self, data, bsz, bptt, device='cpu', ext_len=None):
         """
             data -- LongTensor -- the LongTensor is strictly ordered
         """
         self.bsz = bsz
-        self.bptt = bptt # 36
-        self.ext_len = ext_len if ext_len is not None else 0
+        self.bptt = bptt    # 36  # 句子的长度
+        self.ext_len = ext_len if ext_len is not None else 0  # 表示下一个batch的句子和上一个batch句子重复的长度
 
         self.device = device
+        print(f'data size = {data.size()}')
 
         # Work out how cleanly we can divide the dataset into bsz parts.
-        self.n_step = data.size(0) // bsz
+        self.n_step = data.size(0) // bsz    # 2880
 
         # Trim off any extra elements that wouldn't cleanly fit (remainders).
-        data = data.narrow(0, 0, self.n_step * bsz)  # 让其正好等于bsz x n_step
+        data = data.narrow(0, 0, self.n_step * bsz)    # 让其正好等于bsz x n_step
 
         # Evenly divide the data across the bsz batches.
-        self.data = data.view(bsz, -1).t().contiguous().to(device)  # 720 x 4
+        self.data = data.view(bsz, -1).t().contiguous().to(device)    # 720 x 4
 
         # Number of mini-batches
-        self.n_batch = (self.n_step + self.bptt - 1) // self.bptt
+        self.n_batch = (self.n_step + self.bptt - 1) // self.bptt  # 多少个batch
 
     def get_batch(self, i, bptt=None):
-        if bptt is None: bptt = self.bptt
-        seq_len = min(bptt, self.data.size(0) - 1 - i)  # self.data.size(0)： 2880 / 4 = 720
+        if bptt is None:
+            bptt = self.bptt
+        seq_len = min(bptt, self.data.size(0) - 1 - i)    # self.data.size(0)： 2880 / 4 = 720
 
         end_idx = i + seq_len
         beg_idx = max(0, i - self.ext_len)
 
         data = self.data[beg_idx:end_idx]
-        target = self.data[i+1:i+1+seq_len]
+        target = self.data[i + 1:i + 1 + seq_len]
 
         return data, target, seq_len
 
@@ -63,6 +67,7 @@ class LMOrderedIterator(object):
 
 
 class LMShuffledIterator(object):
+
     def __init__(self, data, bsz, bptt, device='cpu', ext_len=None, shuffle=False):
         """
             data -- list[LongTensor] -- there is no order among the LongTensors
@@ -143,8 +148,8 @@ class LMShuffledIterator(object):
 
 
 class LMMultiFileIterator(LMShuffledIterator):
-    def __init__(self, paths, vocab, bsz, bptt, device='cpu', ext_len=None,
-        shuffle=False):
+
+    def __init__(self, paths, vocab, bsz, bptt, device='cpu', ext_len=None, shuffle=False):
 
         self.paths = paths
         self.vocab = vocab
@@ -176,6 +181,7 @@ class LMMultiFileIterator(LMShuffledIterator):
 
 
 class Corpus(object):
+
     def __init__(self, path, dataset, *args, **kwargs):
         self.dataset = dataset
         self.vocab = Vocab(*args, **kwargs)
@@ -196,25 +202,27 @@ class Corpus(object):
         self.vocab.build_vocab()
 
         if self.dataset in ['ptb', 'wt2', 'wt103']:
-            self.train = self.vocab.encode_file(
-                os.path.join(path, 'train.txt'), ordered=True)
-            self.valid = self.vocab.encode_file(
-                os.path.join(path, 'valid.txt'), ordered=True)
-            self.test  = self.vocab.encode_file(
-                os.path.join(path, 'test.txt'), ordered=True)
+            self.train = self.vocab.encode_file(os.path.join(path, 'train.txt'), ordered=True)
+            self.valid = self.vocab.encode_file(os.path.join(path, 'valid.txt'), ordered=True)
+            self.test = self.vocab.encode_file(os.path.join(path, 'test.txt'), ordered=True)
         elif self.dataset in ['enwik8', 'text8']:
-            self.train = self.vocab.encode_file(
-                os.path.join(path, 'train.txt'), ordered=True, add_eos=False)
-            self.valid = self.vocab.encode_file(
-                os.path.join(path, 'valid.txt'), ordered=True, add_eos=False)
-            self.test  = self.vocab.encode_file(
-                os.path.join(path, 'test.txt'), ordered=True, add_eos=False)
+            self.train = self.vocab.encode_file(os.path.join(path, 'train.txt'),
+                                                ordered=True,
+                                                add_eos=False)
+            self.valid = self.vocab.encode_file(os.path.join(path, 'valid.txt'),
+                                                ordered=True,
+                                                add_eos=False)
+            self.test = self.vocab.encode_file(os.path.join(path, 'test.txt'),
+                                               ordered=True,
+                                               add_eos=False)
         elif self.dataset == 'lm1b':
             self.train = train_paths
-            self.valid = self.vocab.encode_file(
-                os.path.join(path, 'valid.txt'), ordered=False, add_double_eos=True)
-            self.test  = self.vocab.encode_file(
-                os.path.join(path, 'test.txt'), ordered=False, add_double_eos=True)
+            self.valid = self.vocab.encode_file(os.path.join(path, 'valid.txt'),
+                                                ordered=False,
+                                                add_double_eos=True)
+            self.test = self.vocab.encode_file(os.path.join(path, 'test.txt'),
+                                               ordered=False,
+                                               add_double_eos=True)
 
     def get_iterator(self, split, *args, **kwargs):
         if split == 'train':
@@ -259,12 +267,17 @@ def get_lm_corpus(datadir, dataset):
 
     return corpus
 
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='unit test')
-    parser.add_argument('--datadir', type=str, default='../data/text8',
+    parser.add_argument('--datadir',
+                        type=str,
+                        default='../data/text8',
                         help='location of the data corpus')
-    parser.add_argument('--dataset', type=str, default='text8',
+    parser.add_argument('--dataset',
+                        type=str,
+                        default='text8',
                         choices=['ptb', 'wt2', 'wt103', 'lm1b', 'enwik8', 'text8'],
                         help='dataset name')
     args = parser.parse_args()

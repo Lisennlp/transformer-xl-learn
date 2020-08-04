@@ -1,8 +1,9 @@
 #!/bin/bash
 
-if [[ $1 == 'train' ]]; then
+
+if [ "$1" = "train" ];then
     echo 'Run training...'
-    python train.py \
+    CUDA_VISIBLE_DEVICES=0,1 python train.py \
         --cuda \
         --data ../data/enwik8/ \
         --dataset enwik8 \
@@ -22,9 +23,9 @@ if [[ $1 == 'train' ]]; then
         --eval_tgt_len 128 \
         --batch_size 22 \
         --multi_gpu \
-        --gpu0_bsz 4 \
-        ${@:2}
-elif [[ $1 == 'eval' ]]; then
+        --gpu0_bsz 11 \
+
+elif [ "$1" = "eval" ];then
     echo 'Run evaluation...'
     python eval.py \
         --cuda \
@@ -35,7 +36,6 @@ elif [[ $1 == 'eval' ]]; then
         --clamp_len 820 \
         --same_length \
         --split test \
-        ${@:2}
 else
     echo 'unknown argment 1'
 fi
